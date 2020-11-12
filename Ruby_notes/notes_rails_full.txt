@@ -1,0 +1,431 @@
+******************** Noteとして利用する　**********************
+
+
+求められていること
+	①MVCを正しく理解してコードが書けること
+		正しいファイルに正しいものを書く
+	②綺麗なコードを書くこと
+		バグの修正を行う際に参照するため
+		他の人のコードを見て取り込んでいく
+	③テストが書けること
+
+railsエンジニアに求められること
+	便利なgemを知っていて、gemを使って効率よく開発できる
+	データベースやインフラの知識がある
+	フロントのコーディングも行える
+
+将来的にサーバーでrailsアプリケーションを公開することを考えると、本番環境に近い環境が必要になる
+	環境の差異のリスクを減らす
+	そのためのDocker
+
+	バーチャルボックスよりDockerのほうが起動が早い
+		AWSにコンテナを実行するサービスが有るため、Dockerのほうが環境構築が楽
+
+PC {
+	rails用のフォルダ　#マウント→
+
+	Docker実行環境(Moby Linux) {
+	Ruby実行環境コンテナ　{
+	rails用のフォルダ　#←マウント
+	}
+	}
+}
+
+Dockerでrailsの実行環境を作る
+	Dockerfileを作成
+		FROM ruby:2.4.5
+		RUN apt-get update -qq && apt-get install -y build-essential nodejs
+		RUN mkdir /app
+		WORKDIR /app
+		COPY Gemfile /app/Gemfile
+		COPY Gemfile.lock /app/Gemfile.lock
+		RUN bundle install
+		COPY . /app
+
+	Gemfileを作成
+		そもそもGemファイルって？？
+			Gemfile:installしたいgemを定義
+			bundle installコマンドを実行
+			gemで定義したものがインストールされる
+
+	Gemfile.lock
+		デフォルトでは空
+		・・・
+		gemがインストールされる
+		installしたgemがGemfile.lockに記載される
+		パッケージ尾依存関係を解決する記載を行う
+			バージョン制限
+
+	Docker-compose.yml
+		version: '3'
+		services:
+		  web:
+		    build: .
+		    command: bundle exec rails s -p 3000 -b '0.0.0.0'
+		    volumes:
+		      - .:/app
+		    ports:
+		      - 3000:3000
+		    depends_on:
+		      - db
+		    tty: true
+		    stdin_open: true
+		  db:
+		    image: mysql:5.7
+		    volumes:
+		      - db-volume:/var/lib/mysql
+		    environment:
+		      MYSQL_ROOT_PASSWORD: password
+
+		volumes:
+		  db-volume:
+
+	完了したら以下のコマンドを実行し、docker-composeを起動する
+	docker-compose run web rails new . --force --database=mysql
+
+	起動後、ビルドする
+	docker-compose build
+
+	ビルド後、config/docker-compose.ymlを編集する
+ 	username: root
+  	password:pssword
+  	host: db
+  		docker-compose.ymlと同じ設定に変更する必要がある
+
+	起動後スタートする
+	docker-compose up -d
+		これでDBコンテナが立つ
+
+	起動後、DBを作る
+	docker-compose run web bundle exec rake db:create
+		bundle exec rakeの部分は、Rails環境にインストールされているrakeコマンドを実行してくれる
+	rake db:createでRailsで使用するデータベースをMySQLサーバ上に作成してくれます
+
+	＊syntaxerrorが出たので、コンテナを再度作り直した
+		docker-compose down --rmi all --volumes
+		でコンテナを一括削除
+		docker-compose run web rails new . --force --database=mysql
+		から再度始めた
+			▶docker-compose buildからでよかった、、、rails newしてるし
+			▶▶いや、あってたわ、webコンテナが立たない
+
+
+実行環境の起動
+	docker-compose upコマンドで起動　#-dオプションを使わないとログが出る。ログを見たいときはつけてはいけない
+	よくあるエラー
+		途中ですでに起動されています、というエラーがある場合
+			 rm tmp/pids/server.pid
+			 でpidファイルを削除する
+	 rails s と同義のコマンド
+
+アプリケーションの作成
+	①ルーティングの作成
+		config/routes.rbを編集
+		rootメソッドを使う
+		root 'boards#index'
+			▶rootは、localhost:3000にアクセスが来た場合のルーティングを意味する
+				▶つまり、local:host:3000にアクセスが来たらboardsControllerクラスのindexメソッドを実行するように定義している
+
+	②コントローラーの作成と編集
+		場所
+			▶app/controllers配下
+		名称
+			▶コントローラ名_controller.rb
+			▶例：boards_controller.rb
+		編集
+			class BoardsController < ApplicationController
+				def index
+				end
+			end
+
+	③Viewsの作成と編集
+		場所
+			▶app/views/コントローラ名と同じ名前のディレクトリ配下
+			▶例：mkdir app/views/boards
+		名称
+			▶対応するアクションと同名称
+			▶<アクション名>.html.erb
+			▶今回はindexアクションのためのビューなので、index.html.erbとなる
+		他のフレームワークの導入(cssフレームワーク)：bootstrap
+			ⅰ Gemfileにbootstrapのインストールを入れる
+				gem 'bootstrap', '~>4.0.0'
+				gem 'mini_racer'
+			ⅱ app/assets/stylesheet配下にあるapplication.cssの名前を変更
+				mv app/assets/stylesheets/application.css app/assets/stylesheets/application.scss
+			ⅲ scssファイル内の以下の2つの記述はbootstrapの動作に影響を与えるため	削除 
+				*= require_tree .
+ 				*= require_self
+			ⅳ scssファイル内に以下を記述
+				@import "bootstrap";
+			ⅴ app/assets/javascripts配下にあるapplication.jsを編集。
+				↓読み込むjavascriptの記述がある
+				//= require jquery
+				//= require jquery_ujs
+				//= require turbolinks
+				//= require_tree .
+
+				以下に編集
+				Bootstrapの機能を使うために以下の2行を追加。jqueryのバージョンを編集
+				//= require popper
+				//= require bootstrap-sprockets
+				//= require jquery ▶　//= require jquery3
+
+			画面作成
+				2つのhtml.erbファイルから画面は構成される
+					app/view/boards/index.html.erb
+					app/views/layouts/application.html.erb
+						▶2つめのファイルは共通で用いられる
+							▶<%yield%>のところに各Viewが展開される
+							▶全てのレイアウトを中央寄せにしたいなどの場合、yieldを<div class="container"></div>などで囲む
+								そうすることでbootstrapが効き、中央寄せとなる
+							▶一方で上のつまり具合は変わらないため、共通のscssファイルを定義してそこに書き込み呼び出す対応が必要になる
+							▶追加のscssによる装飾は、app/assets/stylesheets配下にファイルを作成し、同様の場所にあるapplication.scssファイルに@import "scssファイル名"; を追記する
+								例：@import "base";
+									@import "boards";
+
+	④modelの作成
+		ⅰテーブルの作成
+			コマンド：docker-compose run web bundle exec rails g model board name:string title:string body:text
+
+			ⅰテーブル定義
+			場所
+				▶db/migrate/(20201012131452_create_boards.rb)
+			中身
+				▶▶テーブルを定義するクラスが作成される
+				▶▶いわば、DDLみたいなもの
+				▶▶カラムが定義される
+				class CreateBoards < ActiveRecord::Migration[5.0]
+			  		def change
+				    	create_table :boards do |t|
+				      	t.string :name
+				      	t.string :title
+				      	t.text :body #テーブル内をチェンジできるメソッドが定義されている
+
+				      	t.timestamps
+			    		end
+			  		end	
+				end
+
+			ⅱモデルファイル
+			場所
+				▶app/models/board.rb
+			中身
+				▶▶テーブルとアソシエイト関係にあり、モデルファイルはいわば、DMLのような役割を果たす
+				▶▶インスタンス変数などを定義できる
+					・name
+					・title
+					※DBのテーブルのレコードをプログラムのオブジェクトとして扱う機能　＝　O/Rマッパー
+		ⅱマイグレーションを行う
+			コマンド
+				docker-compose run web bundle exec rake db:migrate
+				▶未実行のマイグレーションファイルの内容を実行する
+
+
+RESTとは
+	アプリケーションの設計方法の一つ
+	HTTPメソッドを使ってWebのリソースを操作する際の設計方法
+	Railsにおいてリソースとは、ユーザーや掲示板の情報など、主にデータベースのテーブルのデータのこと
+
+	4つのHTTPメソッド
+		①GET　▶　リソースの取得　＝　画面の表示
+		②POST　▶　リソースの作成　＝　画面を作成
+		③PATCH/PUT　▶　リソースの更新　＝　内容の更新
+		④DELETE　▶　リソースの削除　＝　画面を削除
+
+	HTTPメソッド　▶　パス　▶　コントローラ#アクション　▶▶一連の組み合わせで何かしらの処理を行う
+
+	以上の技術はルーティングに用いる
+		具体的には、/Users/makoto-enokimaru/dev/rails/config/配下のroutes.rbにHTTPメソッドを使ったルーティングを記述する
+			Rails.application.routes.draw do
+			  # For details on the DSL available within this file, see http://guides.rubyonrails.org/routing.html
+			  root 'boards#index'
+			  get 'boards', to: 'boards#index' #＝＝boardsにアクセスが来たらboards#indexに遷移するという意味
+			end
+
+ボタン押下によるリンクの遷移
+	html.erbファイルに以下を追加しておく
+		href="/boards/new"
+			これは、/boards/newのルーティングを行いますよーというお話
+			ボタン押下による画面遷移を行いたいのなら
+				<a href="/boards/new" class="btn btn-outline-dark">新規作成</a>
+				になる
+
+ヘルパーメソッドとは、ビューの中で使用できるメソッド
+	読みやすい形で、簡潔にHTMLを記述することができる
+	ex. form_forヘルパー
+
+
+コントローラーではモデルのインスタンスを使うことができる
+	その際は、コントローラファイル内でモデルを使ってインスタンスを作成する
+	※コントローラ内で定義したインスタンス変数は、ビューで参照することができる
+
+erbのテンプレートファイルにおいては、<% %>で囲った中には、Rubyのコードを書くことができる
+	<% %>のようにイコールをつけた場合は、Rubyのコードの実行結果をテンプレート(ビュー)内に埋め込むことができる
+	ex. 
+		<%= form_for @board do |f| %>
+		<% end %>
+			フォームビルダーオブジェクトのブロック引数を取る。
+			このオブジェクトを使用して、モデルのデータを新規に作成するフォームを作ることができる。
+
+	※バージョンアップによる不具合
+		1. Gemfile.lockを編集
+		2. bundle updateを実行
+		3. docker-compose build コマンドを実行して、Gemfile.lockに記載されているバージョンのgemをインストール
+		4. docker-compose up コマンドでRailsを立ち上げる
+
+prybyebugの使用
+	▶デバッグツール
+	▶トレーサーのようなもの
+	▶どのようにプログラムが動いているのか追うことができる
+
+	①Gemfileに記述
+	②bundle install (今回はdockerfileに書いてあるため、docker-compose buildでOK)
+	③サーバーを起動させる。(通常はrails s 今回はdocker-compose up- d)
+	④アタッチ(docker attach rails_web_1でwebサーバーにアタッチして使用)
+	⑤確認したいところで　binding.pry　を記述
+		以下のような記述がCLI上に出る
+			[1] pry(#<BoardsController>)>
+			もしここで、レコードを入れたりすると画面上に反映される
+				@board.name = 'Kojima'
+				@board
+
+
+DBへのデータ入力はHTTPメソッド：Postで行われる
+	その際、全てのデータをDB上で更新/追加して良いわけではなく、フィルターを掛ける必要がある。#セキュリティの観点上
+	この処理をストロングパラメータという
+		private
+		def board_params
+			params.require(:board).permit(:name, :title, :body)
+		end
+	で、その後、取得したストロングパラメータを引数にインスタンスを作成する
+			def create
+				Board.create(board_params)
+				binding.pry
+			end
+					#Boardモデルにストロングパラメータを引数として、createメソッドし、データを作成している
+
+DBの情報を画面に格納する
+		def index
+			@boards = Board.all
+		end
+			#Boardモデルの全てのデータを@boardsインスタンスに格納する
+
+
+ビューにDBデータを表示する
+	 <% @boards.each do |board| %>
+      <tr>
+        <th><%= board.id %></th>
+        <td><%= board.title %></td>
+        <td><%= board.name %></td>
+        <td><%= board.created_at %></td>
+        <td><%= board.updated_at %></td>
+      </tr>
+    <% end %>
+    	#contorollerファイルで定義した@boardsインスタンスをeach doでid順に引き出す
+    	#boardモデルのカラムをそれぞれ指定して、表示する
+    		ex. board.name
+
+
+日本時間にする
+	config/application.rb　に以下を追加する
+		config.time_zone = 'Tokyo'
+
+日時を任意のフォーマットに変更する
+	①strftimeメソッド
+	例
+		board.created_at.strftime('%Y年 %m月 %d日 %H時 %M分') 
+	②config/initializersにファイルを作成して(名称：time_formats.rb)、そこに書き込む
+		Time::DATE_FORMATS[:datetime_jp] = '%Y年 %m月 %d日 %H時 %M分'
+		次にhtml.erbファイルに以下の情報を書き込む
+        	<td><%= board.updated_at.to_s(:datetime_jp) %></td>
+
+showアクションの定義
+	①ルーティングの定義
+		routes.rbに以下を記述
+		get 'boards/:id', to: 'boards#show'
+			#idをパラメータとして、showアクションを呼ぶルーティングを定義
+
+	②controllerファイルに以下を記述
+		def show
+			@board = Board.find(params[:id])
+		end
+
+	③対応するviewを作成
+		おすすめのメソッド
+			<%= simple_format(@board.body) %>
+
+
+現在のルーティングを確認する
+	http://localhost:3000/rails/info/routesをブラウザで
+
+ルーティングを一括で設定する
+	リソースベースルーティング
+	resources :boards
+		onlyを使用することで使いたいルーティングだけに制限することが可能
+			resources :boards, only: [:index, :new, :create, :show]
+
+	各html.erbに以下を記述することで各ページに遷移することができる
+		<%= link_to '新規作成', new_board_path, class: 'btn btn-outline-dark'%>
+			以下と同義
+			    <a href="/boards/new" class="btn btn-outline-dark">新規作成</a>
+
+	    ちなみにこのようにも書ける
+	    	<%= link_to '詳細', board, class: 'bton btn-outline-dark'%><
+	    		これはオブジェクトを渡すことで、showメソッドへリンクしている
+
+編集画面の作成
+	リソースルーティングにeditとupdateを加える
+		viewを作成
+		コントローラでインスタンス定義とメソッドを定義
+
+	リダイレクトとは、ユーザーがアクセスしてきたURLとは別のページに転送する処理のことを指す
+		redirect_to board
+		オブジェクトを指定するだけで転送する
+			転送先のパスを書くこともできるが、オブジェクト指定のほうがリーダブル
+
+	
+Beforeアクションを使うことでリファクタリングできる
+	onlyで適用したいアクションを選択することができる
+
+
+モデルのアソシエイトの構築
+	gemfileにannotateを追加する
+		gem 'annotate'
+	bundle install コマンドを実行
+	bundle exec annotate
+	board.rbを開くと、テーブル定義が追加されている
+		毎回annotateを刷るのはめんどくさいので自動でannotateされるようにする
+			docker-compose exec web bundle exec rails g annotate:install
+			referencesを追加すると外部キーを作成することができる
+			not null制約： null false
+
+モデルの多対多のアソシエイトの構築
+	中間テーブルを作成しid同士の関係を作る
+	id1 ⇔ id1 & id2 ⇔ id2
+		キーは基本的にnot null制約をかける
+
+	dependentオプション
+		dependent: delete_all
+			テーブル感の依存関係。依存先のレコードが消えたら本テーブルのレコードが消える
+		dependent: destory
+
+
+
+ヘッダーメニューの追加
+	viewのディレクトリ下にapplication.html.erbというファイルを作成
+		<%= header_link_item('Home', root_path) %>
+			第一引数に表示名, 第二引数にルーティング
+
+
+
+＊＊＊＊＊＊＊＊＊＊＊
+ユーザー認証の仕組み
+	HTTPはステートレス
+	2回目のアクセスは誰だかわからない.....
+
+
+
+
+
+
+

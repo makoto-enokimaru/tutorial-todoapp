@@ -1,0 +1,43 @@
+# Noteとして利用する
+
+class Car
+    attr_accessor :name  #アクセサメソッド、ゲッターメソッド、セッターメソッドと同様の機能をもたせることができる
+    def initialize(name)
+        @name = name
+    end
+
+    def name
+        @name
+    end
+
+    def name=(value)
+        @name = value
+    end
+end
+
+#  instance生成
+
+car = Car.new('Makoto Enokimaru')
+car.name
+car.name = 'Nakamura'
+
+#クラスの継承に関して
+
+class User
+    def initialize(name)
+        @name = name
+    end
+
+    def hello
+        puts "Hello! I am #{@name}"
+    end
+end
+
+class AdminUser < User
+end
+
+nakamura = User.new('Nakamura')
+nakamura.hello
+
+#クラスの中で変数を定義してインプット値をどのように使うのかを定義
+#子クラスからクラスを抽出

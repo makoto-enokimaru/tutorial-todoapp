@@ -1,0 +1,410 @@
+＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊Noteとして利用する＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊
+
+
+**************
+＜開発＞
+**************
+
+
+=Begin
+MVCアーキテクチャ
+    Model -> データベースアクセスなどデータ関連処理
+    View -> 画面表示
+    Controller -> リクエストやレスポンスを制御、ViewとModelの橋渡し
+
+
+Railsの基本理念
+    コーディングのざっくりとした判断基準 
+        設定より規約 
+            Convention Over Configuration, CoC 
+                データベースのテーブル名はモデルの複数形にするな！
+            "Don't Repeat Yoursefl, DRY"
+            	同じことを繰り返さない
+                	保守性が著しく落ちるため
+
+railsのProjectを始めるためには。。。
+    rails new
+	railsにはウェブサーバーが内蔵されているため rails s　で起動することができる
+
+
+controllerを作成
+    gemfileがあるディレクトリに移動 
+    rails generate controller コントローラー名（複数形） ファイル名　= rails g controller <name>
+    コントローラー名 -> クラス名になる
+    render ブラウザで表示しているコンテンツをレンダリングする
+        コントローラが作成されない場合は... $spring stop　コマンドを押下し、リトライ！
+
+        
+rails s　でサーバーが立たない... バージョンが6だから(泣)
+    バージョンを5で再度アプリを建てる
+      rails _5.2.1_ <コントローラ名> <ファイル名>
+      	バージョン指定することができる
+
+
+rails sをした後にどのように画面が動いてるか見るには
+    AWSのCloud9のみ
+        Running previewをして、URLコピー
+        開いたブラウザのURLの末尾に/<コントローラ名>/<ファイル名>で再度OPEN
+        	/<コントローラ名>/methodでもOpenすることができる
+
+rails routes
+    Prefix Verb URI Pattern Controller#Action
+    データをどうするか、送信など　URL コントローラ
+    ルーティングの際に重要
+    	prefixはパス指定の際に必要となる
+    	verbはパス指定の際にmethodとして渡すことで他のURLと区別することができる
+    	一番右のController'#'Actionは実際にどんな画面に遷移するのか確認することができる
+
+ルーティング
+    configファイルのroutes.rbというファイルにルーティング設定がある
+    これをいじることでコントローラ/アクションが呼ばれるときのurlを変更することができる
+    現在どのようなルーティングがされているのかは、rails routesコマンドを押下することで確認することができる
+
+
+ERB
+    Embedded Rubyの略
+    htmlの中に、rubyのプログラムを埋め込むことができる
+    	例：<%=  %>  ~~~~   <% End %>
+	例えば、indexアクションで定義した@nameを使い、<%=@name %>　<% End %>とすることで画面に変数を表示することができる
+		<%=%>のイコールが重要で、=を入れておくことで画面に<>内に記述した処理を表示することができる
+		逆に画面に表示したくなければ、<% 〜〜 %>とすればいい
+
+
+
+コントローラのファイル名を(アクション名)indexとしておくことで、viewのファイル名と同じになる
+そのためなにかややこしい設定を行う必要がなく、ただ規約に従うことでviewを分離し好きなように画面に表示をすることができる
+
+
+    
+ロジックはモデルかコントローラで行う必要がある
+	NG -> Viewでロジックを組む
+
+
+
+Modelの生成
+    rails g model user name:string age:integer
+        モデル名は単数形にするのが慣習
+        db > migrate > 20201006144258_create_users.rb
+        app > models > user.rb
+        の2ファイルが作成される
+    デフォルトではsqliteとう簡単なDBが作成される
+
+    $rails db:migrate コマンドでマイグレーションが起こる
+        changeメソッドとupメソッドが順番に実行される
+        マイグレーションコマンドを実行しておかないと、DBの処理を行うことができないので、要注意
+		$ rails dbconsole コマンドでDBにアクセスできる
+    
+    dbはインスタンスとして、Model.メソッドで操作することができる
+    	SQLではなく、メソッドで操作する
+    	<インスタンス名> = <Model名>.new コマンドでインスタンスを生成
+    	インスタンス.<カラム> = 〇〇 コマンドで値を挿入
+    	<インスタンス名>.saveでコミット
+
+rails generate 〇〇 ~~~
+	アクションは別に一つじゃなくても良い
+		例：
+		rails g controller <コントローラ名> <アクション1> <アクション2> <アクション3> ...
+
+routes.rb
+    resources :<コントローラ名>　でコントローラに関係するルーティングを自動で生成してくれる
+    root 'questions#index'でトップページにindexアクションをルーティングできる
+        URL/<コントロール>/でなくてもURLでindexページが参照される
+
+
+
+シードファイルを使ってレコードを作成
+    db > seed.db ファイルにレコードを記入することでインサートできる
+        例
+            Question.create(id: 1, name: 'Test name1', title: 'Test question 1', content: 'Test content1')
+	seedsファイルを使用することで、テストをすることができ
+		＝seedsファイルにテストデータを投入する
+		=seedファイルに初期データを入れる
+
+
+
+
+bootstarpのスタイルシートがうまく読み込めない
+    参考：https://4-bh.com/bootstrap4_css/#stylesheet_link
+    	https://ainupli.com/516/#toc2
+        ①application.html.erb(全体のスタイルシート)に以下の記述があるか
+            <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+            <%= javascript_include_tag 'application', 'data-turbolinks-track': 'reload' %>
+        ②app/assets/stylesheets内のapplication.cssをapplication.scssに名前変更したか
+        ③application.scss(htmlファイル)に@import 'bootstrap'を追記したか
+        ④//= require jqueryを//= require jquery3に変更したか
+        	//= require popper　
+            //= require bootstrap-sprocketsの追記をしたか
+    
+
+フォームヘルパー
+	f.submit
+	f.text_fieldなど煩雑なhtmlを回避することができるメソッド
+	form for formタグを使うのは非推奨
+		簡単に画面表示やボタンを生成してくれる
+
+
+
+コントローラファイルのdef-endに定義
+	def create
+    	@question = Question.new(question_params)
+	    if @question.save
+	      redirect_to root_path, notice: 'Success!'
+	    else
+	      flash[:alert] = 'Save error!'
+	    end
+  	end
+	    
+
+  	def edit
+  	end
+	  
+  	private
+      	def question_params
+        	params.require(:question).permit(:name, :title, :content)#saveボタンを押して送信された情報が格納される #strongパラメータ＝name, title, contentのみ受け付けるようにする
+      	end
+
+
+
+コードの途中でbyebugと入れると、画面を途中で止めることができる
+	CLIに"parameters"と入力することで現在どのようなパラメータを保持しているのかを確認することができる
+		不具合の特定などに利用
+
+空データなど弾くためにバリデートが必要
+	question.rbにバリデート構文を記述←models配下
+		class Question < ApplicationRecord
+		    validates :name, presence: true
+		    validates :title, presence: true
+		    validates :content, presence: true
+		end
+
+
+
+エラーメッセージの画面出力
+	application.html.erbに記述
+ 	<% if flash[:notice] %>
+    	<p class="text-success"><%=flash[:notice] %></p>
+  	<% end %>
+  	<% if flash[:alert] %>
+   		<p class="text-danger"><%=flash[:alert] %></p>
+  	<% end %>
+  		flashを引数にして(コントローラーのcreateアクションで定義して)それの結果に応じて出力を出し分ける
+
+
+controllerファイル
+	  def create
+	    @question = Question.new(question_params)
+	    if @question.save
+	      redirect_to root_path, notice: 'Success!'
+	    else
+	      flash[:alert] = 'Save error!'
+	      render :new
+	    end
+	  end
+
+	  redirect_to メソッドでその際のルーティングを指定することができる
+
+
+トップページにリンクを貼るためには
+	index.htmlファイルに以下を挿入
+	<div>
+    	<%=link_to 'New question', new_question_path %>
+    </div>
+    ViewHelperと呼ばれるメソッド
+	引数：　リンクテキスト, URL
+	URLはrails routesでprefixを調べて、_pathをつけるだけでよい
+
+	<%= link_to 'Edit', exit_question_path(question) %>
+	で()内に@なしでインスタンス名を渡すことでインスタンスを渡すことも可能
+
+
+編集画面の編集
+	def edit
+      @question = Question.find(params[:id])
+  	end
+  
+  	def update
+      	@question = Question.find(params[:id])
+      	if @question.update(question_params)
+          	redirect_to root_path, notice: 'Success'
+      	else
+          	flash[:alert] = 'Save error!'
+          	render :edit
+		  end
+  	end
+
+
+リファクタリング
+	＝プログラムを外部から見たときの動作を変えずに、ソースコードを整理すること
+	共通部分はファイルに書き出す
+		_~~
+		最初にアンダーバーを付けるのが慣習
+	呼び出し元には以下を記述
+		   <%= render '~~' %>
+		   ~~には、アンダーバーを除いた名前を入れる
+
+
+
+answer.rb → rails g model でreferencesを定義すると、このファイルに定義が書き込まれる
+	class Answer < ApplicationRecord
+	  belongs_to :question
+	end
+
+	↓　question.rb
+	class Question < ApplicationRecord
+	    has_many answers, dependent: :destroy
+	    
+	    validates :name, presence: true
+	    validates :title, presence: true
+	    validates :content, presence: true
+	end
+	belongs_to :question　⇔　has_many answersの相互間がreferencesを用いて行われる
+
+
+
+
+インスタンス間をつないで利用する際は、
+	form_with model:[@ ,@ ]で引数と戻り値を渡す
+
+	<%= form_with model: [@question, @answer], local: true do |f| %>
+        <%= f.hidden_field :question_id, { value: @question.id} %>
+        <div class="form-group">
+            <label>Name</label>
+            <%= f.text_field :content, class: 'form-control' %>
+        </div>
+        <div class="form-group">
+            <label>Content</label>
+            <%= f.text_area :content, class: 'form-control' %>
+        </div>
+        <div class="text-center">
+            <%= f.submit "Post", class: 'btn' %>
+        </div>
+    <% end %>
+
+
+<% if @question.answer.any? %>
+	＝1件以上あるならば
+
+has_manyとbelonging to で多対1の構成になっており、かつquestionの方では、
+    has_many :answers, dependent: :destroy
+と定義(question.rb)
+また、
+	belongs_to :question
+と定義(answer.rb)
+ゆえに、showなどのviewでは、変数として、{answers}を用いる
+
+find　-> railsのmodelの検索機能
+	引数として、idを使う
+
+
+before_actionの定義
+	アクションが呼ばれる前に定義した処理を実行してくれる
+	class AnswersController < ApplicationController
+  		before_action :set_question, only: [:show, :edit, :update, :destroy] #onlyで定義したアクションに適用される
+	★リファクタリングを行える
+
+
+
+
+**************
+＜デプロイ＞
+**************
+
+デプロイとは
+	開発したソフトウェアをサーバに設置して、ユーザーが利用できる状態にすること
+
+サービスの年商が100億円以上になるケース
+Herokuを使う　→　通常はAWS
+
+参考：PaaSの定義
+	アプリケーション
+	ミドルウェア
+	OS
+	ハードウェア
+	Network
+		アプリケーションを用意するすればOK
+
+
+デプロイの設置のための設置
+	①Gemfile
+	②config/database.yml
+	③config/environments/production.rb
+	④config/routes.rb
+
+	①
+		gemfileのsqliteを消して、deveropment test doのところにのみ適用するため移す
+
+		以下を記載して、production環境にpostgresqlを適用するように設定
+			group :production do
+			  gem 'pg', '~>0.18.4'
+			end
+
+		bundle install --without productionを実行して、production以外のパッケージをインストールする
+	②
+		database.ymlの使用
+			default
+			development
+			test
+			production
+				の4つに別れており、defaultは全部に適用され、それぞれの環境のgroupでdefault設定から変えたいところのみ記述している
+
+		実際の設定
+			1 以下をproductionに設定
+				adapter: postgresql
+  				encoding: unicode
+
+	③
+	  	config.assets.compile = false
+	  	↓
+	  	config.assets.compile = true
+	  	へ変更する
+
+ 	④
+ 		以下を設定
+		root 'questions#index'
+
+Gitでの個人情報の識別情報の登録
+	$ git config --global user.name "Your Name"
+	$ git config --global user.email m.k.t.intruder@gmail.com
+
+
+herokuを用いた、デプロイの方法
+	herokuのインストール
+		374  cd environment/
+		375  ls
+		376  curl -OL https://cli-assets.heroku.com/heroku-linux-x64.tar.gz
+		377  ls
+		378  tar -zxf heroku-linux-x64.tar.gz 
+		379  ls
+		380  ls heroku
+		381  mv heroku /usr/local/
+		382  sudo mv heroku /usr/local/
+		383  ls /usr/local/
+		384  echo 'PATH=/usr/local/heroku/bin:$PATH' >>$HOME/.bash_profile
+		385  source $HOME/.bash_profile
+		386  heroku -v
+		387  rm -f heroku-linux-x64.tar.gz 
+
+	herokuにログインし、gitにリポジトリを作り、同時にURLを取得することができる
+	 	399  heroku login --interactive
+		400  heroku create qanda-20201011
+		402  history
+
+	herokuリモートリポジトリにpush
+		$ git push heroku master
+
+	heroku上でDBサーバーを立ち上げ、移行する
+		$ heroku run rails db:migrate
+		マイグレーション
+
+	以下のコマンドを使用することでURLなどを表示することができる
+	heroku apps:info
+
+
+	＊テスト用ならば、削除必要
+	408  heroku apps:destroy --app qanda-20201011	
+	＊＊＊＊＊＊＊＊＊完了＊＊＊＊＊＊＊＊＊＊＊＊＊
+
+
+
+
+
